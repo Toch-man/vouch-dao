@@ -122,14 +122,24 @@ nav{position:relative;z-index:10;display:flex;align-items:center;justify-content
 }
 </style>
 
-<script type="module">
-import {
-  isConnected,
-  requestAccess,
-  getAddress
-} from 'https://esm.sh/@stellar/freighter-api';
+<<script type="module">
+  import {
+    isConnected,
+    requestAccess,
+    getAddress,
+    signTransaction
+  } from 'https://esm.sh/@stellar/freighter-api@2.1.1';
 
-window.freighterSDK = { isConnected, requestAccess, getAddress };
+  // Wait for full load before attaching to window
+  window.addEventListener('load', () => {
+    window.freighterSDK = { 
+      isConnected, 
+      requestAccess, 
+      getAddress, 
+      signTransaction 
+    };
+    console.log("Freighter SDK loaded ✅");
+  });
 </script>
 </head>
 
@@ -193,21 +203,35 @@ function hideConnecting(){
 
 async function connectFreighter() {
   try {
+    // Wait for SDK to load
+    if (!window.freighterSDK) {
+      alert("Still loading, please try again in 2 seconds");
+      return;
+    }
+
     showConnecting();
 
     const connected = await window.freighterSDK.isConnected();
+    
     if (!connected.isConnected) {
       window.open('https://www.freighter.app/', '_blank');
       hideConnecting();
-      alert("Install Freighter wallet");
+      alert("Please install Freighter wallet extension first");
       return;
     }
 
     await window.freighterSDK.requestAccess();
 
-    const address = await window.freighterSDK.getAddress();
+    const addressResult = await window.freighterSDK.getAddress();
+    const address = addressResult.address || addressResult;
 
-    document.getElementById('f_address').value = address.address;
+    if (!address) {
+      hideConnecting();
+      alert("Could not get wallet address. Make sure Freighter is unlocked.");
+      return;
+    }
+
+    document.getElementById('f_address').value = address;
     document.getElementById('f_name').value = "Freighter";
     document.getElementById('f_chain').value = "stellar-testnet";
 
@@ -215,7 +239,8 @@ async function connectFreighter() {
 
   } catch (e) {
     hideConnecting();
-    alert(e.message);
+    console.error(e);
+    alert("Error: " + e.message);
   }
 }
 </script>
