@@ -9,30 +9,27 @@ if (empty($_SESSION['wallet_address'])) {
 
 $wallet_address = $_SESSION['wallet_address'];
 $wallet_name    = $_SESSION['wallet_name'] ?? 'Wallet';
-
-$xlm_balance = (float)($_SESSION['xlm_balance'] ?? 0);
-$usd_balance = (float)($_SESSION['usd_balance'] ?? 0);
-
+$xlm_balance    = (float)($_SESSION['xlm_balance'] ?? 0);
+$usd_balance    = (float)($_SESSION['usd_balance'] ?? 0);
 $pending_funds  = $usd_balance * 0.336;
 $released_funds = $usd_balance * 0.647;
-
-$short_address = strlen($wallet_address) > 10
-    ? substr($wallet_address, 0, 6).'...'.substr($wallet_address, -4)
-    : $wallet_address;
+$short_address  = substr($wallet_address, 0, 6) . '...' . substr($wallet_address, -4);
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
-<title>Dashboard</title>
+<title>Dashboard — Vouch</title>
 <link rel="stylesheet" href="dashboard.css">
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/13.3.0/stellar-sdk.min.js"></script>
+<script type="module">
+  import { isConnected, requestAccess, getAddress, signTransaction }
+    from 'https://esm.sh/@stellar/freighter-api';
+  window.freighterSDK = { isConnected, requestAccess, getAddress, signTransaction };
+</script>
 </head>
-
 <body>
-
 <div class="app">
+
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <a href="index.php" class="sidebar-logo">
@@ -40,27 +37,23 @@ $short_address = strlen($wallet_address) > 10
   </a>
   <div class="sidebar-section">Menu</div>
   <a class="nav-link active" href="dashboard.php">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>Dashboard
   </a>
   <a class="nav-link" href="proposal.php">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>Proposals
-  </a>
-  <a class="nav-link" href="#">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>Milestone
-  </a>
-  <a class="nav-link" href="#">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Funds
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+    </svg>Proposals
   </a>
   <div class="sidebar-section">Community</div>
-  <a class="nav-link" href="#">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Contributors
-  </a>
-  <a class="nav-link" href="#">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports
-  </a>
-  <a class="nav-link" href="#">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M21 12h-3M6 12H3M12 3V0M12 24v-3"/></svg>Settings
-  </a>
+  <a class="nav-link" href="#">Contributors</a>
+  <a class="nav-link" href="#">Reports</a>
+  <a class="nav-link" href="#">Settings</a>
   <div class="sidebar-spacer"></div>
   <div class="sidebar-wallet">
     <div class="sw-label">Connected Wallet</div>
@@ -75,388 +68,371 @@ $short_address = strlen($wallet_address) > 10
 <div class="main">
   <header class="topbar">
     <div class="topbar-left">
-      <button class="hamburger" onclick="openSidebar()">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
+      <button class="hamburger" onclick="document.getElementById('sidebar').classList.add('open')">☰</button>
       <div class="topbar-title">Dashboard</div>
     </div>
     <div class="topbar-right">
       <div class="chain-badge">
         <span class="chain-dot"></span>
-        <span class="chain-name"><?= htmlspecialchars($network_name) ?></span>
+        <span class="chain-name">Stellar Testnet</span>
       </div>
-      <button class="btn-proposal" id="newProposalBtn">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span>New Proposal</span>
-      </button>
+      <button class="btn-proposal" id="newProposalBtn">+ New Proposal</button>
     </div>
   </header>
 
   <div class="content">
     <div class="welcome">
       Welcome back, <strong><?= htmlspecialchars($wallet_name) ?></strong>!
-      Here's what's happening with Moonlight DAO.
     </div>
 
     <!-- STAT CARDS -->
     <div class="stat-grid">
       <div class="stat-card" style="--card-accent:var(--accent)">
-        <div class="sc-label">
-          Total Funds
-          <span class="live-badge"><span class="live-dot"></span>Live</span>
-        </div>
+        <div class="sc-label">Total Funds <span class="live-badge"><span class="live-dot"></span>Live</span></div>
         <div class="sc-value" id="totalFunds">$<?= number_format($usd_balance, 2) ?></div>
-        <div class="sc-sub">
-          <span class="sc-badge up">↑ XLM  wallet</span>
-          <span id="ethDisplay"><?= number_format($xlm_balance, 4) ?> XLM</span>
-        </div>
-        <div class="sc-icon" style="background:rgba(99,120,255,0.12)">💎</div>
+        <div class="sc-sub"><span id="ethDisplay"><?= number_format($xlm_balance, 4) ?> XLM</span></div>
+        <div class="sc-icon">💎</div>
       </div>
       <div class="stat-card" style="--card-accent:var(--warning)">
         <div class="sc-label">Pending Funds</div>
         <div class="sc-value">$<?= number_format($pending_funds, 2) ?></div>
-        <div class="sc-sub"><span class="sc-badge warn">Awaiting</span> Awaiting approval</div>
-        <div class="sc-icon" style="background:rgba(245,158,11,0.12)">⏳</div>
+        <div class="sc-sub"><span class="sc-badge warn">Awaiting approval</span></div>
+        <div class="sc-icon">⏳</div>
       </div>
       <div class="stat-card" style="--card-accent:var(--success)">
         <div class="sc-label">Released Funds</div>
         <div class="sc-value">$<?= number_format($released_funds, 2) ?></div>
-        <div class="sc-sub"><span class="sc-badge up">✓</span> Successfully released</div>
-        <div class="sc-icon" style="background:rgba(34,211,160,0.12)">✅</div>
+        <div class="sc-sub"><span class="sc-badge up">✓ Released</span></div>
+        <div class="sc-icon">✅</div>
       </div>
       <div class="stat-card" style="--card-accent:var(--accent2)">
         <div class="sc-label">Active Milestones</div>
-        <div class="sc-value">8</div>
-        <div class="sc-sub"><span style="color:var(--accent2)">Across 4 projects</span></div>
-        <div class="sc-icon" style="background:rgba(167,139,250,0.12)">🚩</div>
+        <div class="sc-value">
+          <?php
+            $mstmt = $conn->prepare("SELECT COUNT(*) as cnt FROM proposal WHERE wallet_address = ? AND status = 'active'");
+            $mstmt->bind_param("s", $wallet_address);
+            $mstmt->execute();
+            echo $mstmt->get_result()->fetch_assoc()['cnt'];
+            $mstmt->close();
+          ?>
+        </div>
+        <div class="sc-icon">🚩</div>
       </div>
     </div>
 
-    <!-- TWO-COL -->
-    <div class="dash-cols">
-      <!-- MILESTONE PROGRESS -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">Milestone Progress</div>
-          <button class="panel-action">View all Milestones</button>
-        </div>
-        <?php
-$stmt = $conn->prepare("SELECT * FROM proposal WHERE wallet_address = ? ORDER BY created_at DESC");
-$stmt->bind_param("s", $wallet_address);
-$stmt->execute();
-
-$result = $stmt->get_result();
-
-if ($result->num_rows > 0) {
-    $count = 1;
-
-    while ($row = $result->fetch_assoc()) {
-
-        $project_name = htmlspecialchars($row['project_name']);
-        $duration     = (int)$row['duration'];
-        $budget       = number_format($row['budget'], 2);
-        $created_at   = $row['created_at'];
-
-        // calculate due date
-        $due_date = date('M d, Y', strtotime($created_at . " +{$duration} weeks"));
-
-        // optional progress example
-        $progress = 75; // you can replace with real progress from DB
-
-        // status
-        $status = ($progress >= 70) ? "On Track" : "Pending";
-        $status_class = ($progress >= 70) ? "status-on-track" : "status-pending";
-        ?>
-
+    <!-- MILESTONE PROGRESS -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Milestone Progress</div>
+        <a href="proposal.php" class="panel-action">View all</a>
+      </div>
+      <?php
+        $stmt = $conn->prepare("SELECT * FROM proposal WHERE wallet_address = ? ORDER BY created_at DESC LIMIT 5");
+        $stmt->bind_param("s", $wallet_address);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $count = 1;
+        while ($row = $result->fetch_assoc()):
+          $progress = $row['status'] === 'active' ? 75 : ($row['status'] === 'dispute' ? 40 : 20);
+          $due = date('M d, Y', strtotime($row['created_at'] . ' +' . $row['duration'] . ' weeks'));
+      ?>
         <div class="milestone-item">
           <div class="mi-top">
-            <div class="mi-num" style="background:rgba(99,120,255,0.15);color:var(--accent)">
-              <?= $count ?>
-            </div>
-
+            <div class="mi-num"><?= $count ?></div>
             <div class="mi-info">
-              <div class="mi-name"><?= $project_name ?></div>
-              <div class="mi-desc">Project duration: <?= $duration ?> week(s)</div>
+              <div class="mi-name"><?= htmlspecialchars($row['project_name']) ?></div>
+              <div class="mi-desc"><?= $row['duration'] ?> week(s)</div>
             </div>
-
             <div class="mi-right">
-              <div class="mi-due">
-                <span style="color:var(--warning)"><?= $due_date ?></span>
-                Due Date
-              </div>
-              <span class="status-badge <?= $status_class ?>"><?= $status ?></span>
+              <div class="mi-due"><?= $due ?></div>
+              <span class="status-badge <?= $row['status'] === 'active' ? 'status-on-track' : 'status-pending' ?>">
+                <?= ucfirst($row['status']) ?>
+              </span>
             </div>
           </div>
-
           <div class="progress-bar">
-            <div class="progress-fill" style="width:<?= $progress ?>%;background:linear-gradient(90deg,var(--accent),var(--accent2))"></div>
+            <div class="progress-fill" style="width:<?= $progress ?>%"></div>
           </div>
+          <div class="mi-budget"><?= $progress ?>% · Budget: $<?= number_format((float)$row['budget'], 2) ?></div>
 
-          <div class="mi-budget">
-            <?= $progress ?>% · Budget: $<?= $budget ?>
+          <!-- ESCROW ACTIONS -->
+          <?php if (!empty($row['escrow_id'])): ?>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button
+              onclick="handleApprove('<?= $row['escrow_id'] ?>', 0)"
+              style="background:#22d3a0;color:#000;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">
+              ✅ Approve M1
+            </button>
+            <button
+              onclick="handleRelease('<?= $row['escrow_id'] ?>', 0)"
+              style="background:#6378ff;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">
+              💸 Release M1
+            </button>
+            <button
+              onclick="handleDispute('<?= $row['escrow_id'] ?>', 0)"
+              style="background:#ff5c5c;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">
+              ⚠️ Dispute
+            </button>
+            <a href="https://viewer.trustlesswork.com/<?= $row['escrow_id'] ?>"
+               target="_blank"
+               style="background:#111829;color:#6378ff;border:1px solid #6378ff;padding:6px 14px;border-radius:8px;font-size:12px;text-decoration:none;">
+              🔗 View on Chain
+            </a>
           </div>
+          <?php else: ?>
+            <div style="margin-top:8px;font-size:11px;color:#555;">No escrow deployed yet</div>
+          <?php endif; ?>
         </div>
+      <?php $count++; endwhile; $stmt->close(); ?>
+    </div>
 
-        <?php
-        $count++;
-    }
-
-} else {
-    echo "<p style='padding:20px;color:#999;'>No proposals found for this wallet.</p>";
-}
-
-$stmt->close();
-?>
-        <div style="padding:12px 20px;display:flex;gap:20px;font-size:11px;color:var(--muted);flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:#333;display:inline-block"></span>Not started</span>
-          <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block"></span>In Progress</span>
-          <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:var(--warning);display:inline-block"></span>On Review</span>
-          <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:var(--success);display:inline-block"></span>Completed</span>
-        </div>
+    <!-- RECENT TRANSACTIONS -->
+    <div class="panel" style="margin-top:20px">
+      <div class="panel-header">
+        <div class="panel-title">Recent Transactions</div>
       </div>
-
-      <!-- RIGHT: FUNDS OVERVIEW -->
-      <div style="display:flex;flex-direction:column;gap:20px;">
-        <div class="panel">
-          <div class="panel-header"><div class="panel-title">Funds Overview</div></div>
-          <div class="funds-overview">
-            <?php
-              $pend_pct = $usd_balance > 0 ? round($pending_funds / $usd_balance * 100) : 33;
-              $rel_pct  = $usd_balance > 0 ? round($released_funds / $usd_balance * 100) : 65;
-              $r = 70; $cx = 90; $cy = 90;
-              $circ = 2 * pi() * $r;
-              $rel_dash  = ($rel_pct  / 100) * $circ;
-              $pend_dash = ($pend_pct / 100) * $circ;
-              $gap = 5;
-            ?>
-            <div style="display:flex;justify-content:center;margin:12px 0;">
-              <svg width="180" height="180" viewBox="0 0 180 180" style="overflow:visible;">
-                <circle cx="<?=$cx?>" cy="<?=$cy?>" r="<?=$r?>" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="18"/>
-                <circle cx="<?=$cx?>" cy="<?=$cy?>" r="<?=$r?>" fill="none" stroke="#6378ff" stroke-width="18"
-                  stroke-dasharray="<?=$rel_dash?> <?=($circ-$rel_dash)?>"
-                  stroke-dashoffset="<?=($circ*0.25)?>" stroke-linecap="round"/>
-                <circle cx="<?=$cx?>" cy="<?=$cy?>" r="<?=$r?>" fill="none" stroke="#f4c430" stroke-width="18"
-                  stroke-dasharray="<?=$pend_dash?> <?=($circ-$pend_dash)?>"
-                  stroke-dashoffset="<?=($circ*0.25 - $rel_dash - $gap)?>" stroke-linecap="round"/>
-                <text x="<?=$cx?>" y="<?=$cy-6?>" text-anchor="middle" fill="#e8eaf6" font-family="Syne,sans-serif" font-size="15" font-weight="700">
-                  <?= $xlm_balance > 0 ? number_format($xlm_balance, 3) . ' XLM' : '$' . round($usd_balance/1000) . 'K' ?>
-                </text>
-                <text x="<?=$cx?>" y="<?=$cy+14?>" text-anchor="middle" fill="#6b7a9e" font-family="DM Sans,sans-serif" font-size="11">Treasury</text>
-              </svg>
-            </div>
-            <div class="donut-legend">
-              <div class="legend-item">
-                <span class="legend-dot" style="background:var(--gold)"></span>
-                <span class="legend-label">Pending Funds</span>
-                <span class="legend-val">$<?=number_format($pending_funds,0)?></span>
-                <span class="legend-pct"><?=$pend_pct?>%</span>
-              </div>
-              <div class="legend-item">
-                <span class="legend-dot" style="background:var(--accent)"></span>
-                <span class="legend-label">Released Funds</span>
-                <span class="legend-val">$<?=number_format($released_funds,0)?></span>
-                <span class="legend-pct"><?=$rel_pct?>%</span>
-              </div>
-            </div>
-            <div class="donut-total">
-              <div class="lbl">Total Treasury</div>
-              <div class="val">$<?=number_format($usd_balance,2)?></div>
-            </div>
+      <?php
+        $tstmt = $conn->prepare("SELECT * FROM transactions WHERE wallet_address = ? ORDER BY created_at DESC LIMIT 5");
+        $tstmt->bind_param("s", $wallet_address);
+        $tstmt->execute();
+        $tres = $tstmt->get_result();
+        if ($tres->num_rows === 0):
+      ?>
+        <div style="padding:20px;color:#555;font-size:14px;">No transactions yet.</div>
+      <?php else: while ($tx = $tres->fetch_assoc()): ?>
+        <div class="tx-item">
+          <div class="tx-icon">💰</div>
+          <div class="tx-info">
+            <div class="tx-name"><?= htmlspecialchars($tx['type']) ?></div>
+            <div class="tx-desc"><?= date("M d, Y", strtotime($tx['created_at'])) ?></div>
           </div>
+          <div class="tx-right">
+            <div class="tx-amount" style="color:var(--success)">$<?= number_format($tx['amount'], 2) ?></div>
+          </div>
+        </div>
+      <?php endwhile; endif; $tstmt->close(); ?>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="panel" style="margin-top:20px">
+      <div class="panel-header"><div class="panel-title">Quick Actions</div></div>
+      <div class="qa-grid">
+        <div class="qa-btn" onclick="document.getElementById('proposalModal').style.display='flex'">
+          <div class="qa-icon">📋</div>
+          <div class="qa-label">Create Proposal</div>
+        </div>
+        <div class="qa-btn" onclick="alert('Go to a proposal and click Approve')">
+          <div class="qa-icon">✅</div>
+          <div class="qa-label">Approve Funds</div>
+        </div>
+        <div class="qa-btn" onclick="alert('Go to a proposal and click Dispute')">
+          <div class="qa-icon">⚠️</div>
+          <div class="qa-label">Raise Dispute</div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+</div>
 
-    <!-- TRANSACTIONS + QUICK ACTIONS -->
-    <div class="dash-cols" style="margin-bottom:24px">
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">Recent Transactions</div>
-          <button class="panel-action">View all</button>
-        </div>
-        <div class="tx-item">
-          <div class="tx-icon" style="background:rgba(245,158,11,0.12)">⏳</div>
-          <div class="tx-info"><div class="tx-name">Milestone 1 Payment</div><div class="tx-desc">Website Redesign</div></div>
-          <div class="tx-right"><div class="tx-amount" style="color:var(--warning)">$7,500</div><div class="tx-time"><span class="status-badge status-review" style="font-size:10px">Pending</span> 2h ago</div></div>
-        </div>
-        <div class="tx-item">
-          <div class="tx-icon" style="background:rgba(34,211,160,0.12)">✅</div>
-          <div class="tx-info"><div class="tx-name">Milestone 2 Payment</div><div class="tx-desc">Smart Contract Audit</div></div>
-          <div class="tx-right"><div class="tx-amount" style="color:var(--success)">$4,250</div><div class="tx-time"><span class="status-badge status-on-track" style="font-size:10px">Released</span> 1d ago</div></div>
-        </div>
-        <div class="tx-item">
-          <div class="tx-icon" style="background:rgba(34,211,160,0.12)">💰</div>
-          <div class="tx-info"><div class="tx-name">DAO Treasury Top-up</div><div class="tx-desc">From <?= htmlspecialchars($short_address) ?></div></div>
-          <div class="tx-right"><div class="tx-amount" style="color:var(--success)">$20,000</div><div class="tx-time"><span class="status-badge status-on-track" style="font-size:10px">Released</span> 3d ago</div></div>
-        </div>
-      </div>
-
-      <div class="panel" style="display:flex;flex-direction:column;">
-        <div class="panel-header"><div class="panel-title">Quick Action</div></div>
-        <div class="qa-grid">
-          <div class="qa-btn"><div class="qa-icon" style="background:rgba(34,211,160,0.12)">✅</div><div class="qa-label">Approve Funds</div></div>
-          <div class="qa-btn"><div class="qa-icon" style="background:rgba(99,120,255,0.12)">💬</div><div class="qa-label">Provide Feedback</div></div>
-          <div class="qa-btn"><div class="qa-icon" style="background:rgba(167,139,250,0.12)">📋</div><div class="qa-label">Create Proposal</div></div>
-        </div>
-      </div>
-    </div>
-
-<!-- ==================== PROPOSAL MODAL ==================== -->
-<div class="modal" id="proposalModal">
+<!-- PROPOSAL MODAL -->
+<div class="modal" id="proposalModal" style="display:none">
   <div class="modal-content">
     <div class="modal-header">
       <div class="modal-title">Create New Proposal</div>
-      <button class="close-modal" id="closeModal">×</button>
+      <button class="close-modal" onclick="document.getElementById('proposalModal').style.display='none'">×</button>
     </div>
     <div class="modal-body">
-      <form id="proposalForm" method="POST" action="submit_proposal.php">
-        <input type="hidden" name="submit_proposal" value="1">
+      <div id="modalError" style="display:none;background:rgba(255,92,92,0.1);color:#ff5c5c;padding:10px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
+      <div id="modalSuccess" style="display:none;background:rgba(34,211,160,0.1);color:#22d3a0;padding:10px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
 
-        <div class="form-group">
-          <label>Wallet Name</label>
-          <input type="text" id="walletName" name="wallet_name" value="<?= htmlspecialchars($wallet_name) ?>" readonly>
-        </div>
-
-        <div class="form-group">
-          <label>Wallet Address</label>
-          <input type="text" id="walletAddress" name="wallet_address" value="<?= htmlspecialchars($wallet_address) ?>" readonly>
-        </div>
-      
-        <div class="form-group">
-          <label>Project Name</label>
-          <input type="text" name="project_name" id="projectName" placeholder="e.g. Website Redesign v2" required>
-        </div>
-
-        <div class="form-group">
-          <label>Duration (in weeks)</label>
-          <input type="number" name="duration" id="duration" placeholder="12" min="1" required>
-        </div>
-
-        <div class="form-group">
-          <label>Budget (USD)</label>
-          <input type="number" name="budget" id="budget" placeholder="15000" min="100" step="100" required>
-        </div>
-
-        <div class="form-group">
-          <label>Milestone 1 (35%)</label>
-          <input type="text" id="milestone1" readonly>
-          <input type="hidden" name="milestone1" id="hidden_m1">
-        </div>
-
-        <div class="form-group">
-          <label>Milestone 2 (35%)</label>
-          <input type="text" id="milestone2" readonly>
-          <input type="hidden" name="milestone2" id="hidden_m2">
-        </div>
-
-        <div class="form-group">
-          <label>Milestone 3 (30%)</label>
-          <input type="text" id="milestone3" readonly>
-          <input type="hidden" name="milestone3" id="hidden_m3">
-        </div>
-
-        <button type="submit" class="btn-submit">Submit Proposal</button>
-      </form>
-    </div>
-  </div>
-</div>
-
-    <!-- MILESTONE DETAILS TABLE -->
-    <div class="panel" style="margin-bottom:24px">
-      <div class="panel-header"><div class="panel-title">Milestone Details</div></div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Milestone</th><th>Progress</th><th>Status</th>
-              <th>Deadline</th><th>Approval</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><div style="display:flex;align-items:center;gap:10px"><div class="mi-num" style="width:28px;height:28px;border-radius:8px;background:rgba(99,120,255,0.15);color:var(--accent);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div><div><div class="td-name">Website Redesign</div><div class="td-sub">Design and Development</div></div></div></td>
-              <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="flex:1;min-width:60px"><div class="progress-fill" style="width:75%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--muted)">75%</span></div></td>
-              <td><span class="status-badge" style="background:rgba(99,120,255,0.1);color:var(--accent)">In Progress</span></td>
-              <td><div style="font-size:12px">May 25, 2026</div><div class="td-sub" style="color:var(--success)">5 days left</div></td>
-              <td><div class="approval-dots"><div class="apdot" style="background:var(--success)"></div><div class="apdot" style="background:var(--success)"></div><div class="apdot" style="background:var(--border)"></div><span style="font-size:11px;color:var(--muted);margin-left:4px">2/3</span></div></td>
-              <td><button class="btn-review">Review</button></td>
-            </tr>
-            <tr>
-              <td><div style="display:flex;align-items:center;gap:10px"><div class="mi-num" style="width:28px;height:28px;border-radius:8px;background:rgba(245,158,11,0.15);color:var(--warning);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div><div><div class="td-name">Smart Contract Audit</div><div class="td-sub">Security Audit</div></div></div></td>
-              <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="flex:1;min-width:60px"><div class="progress-fill" style="width:50%;background:var(--warning)"></div></div><span style="font-size:12px;color:var(--muted)">50%</span></div></td>
-              <td><span class="status-badge status-review">On Review</span></td>
-              <td><div style="font-size:12px">Jun 10, 2026</div><div class="td-sub" style="color:var(--muted)">21 days left</div></td>
-              <td><div class="approval-dots"><div class="apdot" style="background:var(--success)"></div><div class="apdot" style="background:var(--border)"></div><div class="apdot" style="background:var(--border)"></div><span style="font-size:11px;color:var(--muted);margin-left:4px">1/3</span></div></td>
-              <td><button class="btn-review">Review</button></td>
-            </tr>
-            <tr>
-              <td><div style="display:flex;align-items:center;gap:10px"><div class="mi-num" style="width:28px;height:28px;border-radius:8px;background:rgba(255,92,92,0.15);color:var(--danger);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div><div><div class="td-name">Mobile App Development</div><div class="td-sub">iOS &amp; Android App</div></div></div></td>
-              <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="flex:1;min-width:60px"><div class="progress-fill" style="width:25%;background:var(--danger)"></div></div><span style="font-size:12px;color:var(--muted)">25%</span></div></td>
-              <td><span class="status-badge" style="background:rgba(99,120,255,0.1);color:var(--accent)">In Progress</span></td>
-              <td><div style="font-size:12px">Jul 5, 2026</div><div class="td-sub" style="color:var(--danger)">At risk</div></td>
-              <td><div class="approval-dots"><div class="apdot" style="background:var(--border)"></div><div class="apdot" style="background:var(--border)"></div><div class="apdot" style="background:var(--border)"></div><span style="font-size:11px;color:var(--muted);margin-left:4px">0/3</span></div></td>
-              <td><button class="btn-review">Review</button></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="form-group">
+        <label>Wallet Name</label>
+        <input type="text" id="walletName" value="<?= htmlspecialchars($wallet_name) ?>" readonly>
       </div>
+      <div class="form-group">
+        <label>Your Wallet Address (DAO Admin)</label>
+        <input type="text" id="walletAddress" value="<?= htmlspecialchars($wallet_address) ?>" readonly>
+      </div>
+      <div class="form-group">
+        <label>Contributor Wallet Address (Stellar G...)</label>
+        <input type="text" id="contributorWallet" placeholder="G... contributor Stellar address" required>
+      </div>
+      <div class="form-group">
+        <label>Project Name</label>
+        <input type="text" id="projectName" placeholder="e.g. Website Redesign v2" required>
+      </div>
+      <div class="form-group">
+        <label>Duration (weeks)</label>
+        <input type="number" id="duration" placeholder="12" min="1" required>
+      </div>
+      <div class="form-group">
+        <label>Budget (USD)</label>
+        <input type="number" id="budget" placeholder="15000" min="100" step="100" required>
+      </div>
+      <div class="form-group">
+        <label>Milestone 1 (35%)</label>
+        <input type="text" id="milestone1" readonly>
+      </div>
+      <div class="form-group">
+        <label>Milestone 2 (35%)</label>
+        <input type="text" id="milestone2" readonly>
+      </div>
+      <div class="form-group">
+        <label>Milestone 3 (30%)</label>
+        <input type="text" id="milestone3" readonly>
+      </div>
+      <button id="submitProposalBtn" class="btn-submit" style="width:100%;padding:14px;background:linear-gradient(135deg,#6378ff,#a78bfa);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;">
+        🚀 Deploy Escrow & Submit
+      </button>
     </div>
   </div>
 </div>
-</div>
 
+<script src="escrow.js"></script>
 <script>
-// ---------------- SIDEBAR ----------------
-function openSidebar(){
-  document.getElementById('sidebar').classList.add('open');
-}
-function closeSidebar(){
-  document.getElementById('sidebar').classList.remove('open');
-}
-
-// ---------------- BALANCE REFRESH (FIXED) ----------------
+// Balance refresh
 async function refreshBalance() {
   try {
-    const server = new StellarSdk.Horizon.Server(
-      "https://horizon-testnet.stellar.org"
-    );
-
+    const server = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
     const account = await server.loadAccount("<?= $wallet_address ?>");
-
     const xlm = account.balances.find(b => b.asset_type === "native");
-
     const balance = xlm ? parseFloat(xlm.balance) : 0;
-
-    document.getElementById("ethDisplay").textContent =
-      balance.toFixed(4) + " XLM";
-
-    document.getElementById("sidebarEth").textContent =
-      balance.toFixed(4) + " XLM";
-
-  } catch (e) {
-    console.log("Balance fetch failed", e);
-  }
+    document.getElementById("ethDisplay").textContent = balance.toFixed(4) + " XLM";
+    document.getElementById("sidebarEth").textContent = balance.toFixed(4) + " XLM";
+  } catch(e) { console.log("Balance fetch failed", e); }
 }
-
-// run once + interval
 refreshBalance();
 setInterval(refreshBalance, 60000);
 
-// ---------------- MODAL ----------------
-const modal = document.getElementById('proposalModal');
+// Milestone auto-calculate
+document.getElementById('budget').addEventListener('input', function() {
+  const b = parseFloat(this.value);
+  if (!isNaN(b) && b > 0) {
+    document.getElementById('milestone1').value = '$' + (b * 0.35).toFixed(2);
+    document.getElementById('milestone2').value = '$' + (b * 0.35).toFixed(2);
+    document.getElementById('milestone3').value = '$' + (b * 0.30).toFixed(2);
+  }
+});
 
+// Modal open
 document.getElementById('newProposalBtn').onclick = () => {
-  modal.style.display = 'flex';
+  document.getElementById('proposalModal').style.display = 'flex';
 };
 
-document.getElementById('closeModal').onclick = () => {
-  modal.style.display = 'none';
+// Submit proposal — deploy escrow first then save to DB
+document.getElementById('submitProposalBtn').onclick = async () => {
+  const btn             = document.getElementById('submitProposalBtn');
+  const errorDiv        = document.getElementById('modalError');
+  const successDiv      = document.getElementById('modalSuccess');
+  const daoWallet       = document.getElementById('walletAddress').value;
+  const contributorWallet = document.getElementById('contributorWallet').value.trim();
+  const projectName     = document.getElementById('projectName').value.trim();
+  const duration        = document.getElementById('duration').value;
+  const budget          = parseFloat(document.getElementById('budget').value);
+  const milestone1      = document.getElementById('milestone1').value;
+  const milestone2      = document.getElementById('milestone2').value;
+  const milestone3      = document.getElementById('milestone3').value;
+
+  errorDiv.style.display   = 'none';
+  successDiv.style.display = 'none';
+
+  // Validate
+  if (!contributorWallet.startsWith('G') || contributorWallet.length !== 56) {
+    errorDiv.textContent = 'Please enter a valid Stellar contributor wallet (starts with G, 56 chars)';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  if (!projectName || !budget || !duration) {
+    errorDiv.textContent = 'Please fill all fields';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  btn.textContent = '⏳ Deploying escrow on Stellar...';
+  btn.disabled = true;
+
+  try {
+    // 1. Deploy escrow on Stellar via Trustless Work
+    const escrowResult = await createEscrow({
+      client: daoWallet,
+      serviceProvider: contributorWallet,
+      disputeResolver: DISPUTE_RESOLVER,
+      milestones: [
+        { description: projectName + " - Milestone 1", amount: String(budget * 0.35) },
+        { description: projectName + " - Milestone 2", amount: String(budget * 0.35) },
+        { description: projectName + " - Milestone 3", amount: String(budget * 0.30) },
+      ],
+      asset: "USDC",
+      platformAddress: daoWallet,
+      platformFee: "0"
+    });
+
+    btn.textContent = '💾 Saving to database...';
+
+    // 2. Save to PHP/MySQL
+    const formData = new FormData();
+    formData.append('submit_proposal', '1');
+    formData.append('wallet_name', '<?= htmlspecialchars($wallet_name) ?>');
+    formData.append('wallet_address', daoWallet);
+    formData.append('contributor_wallet', contributorWallet);
+    formData.append('resolver_wallet', DISPUTE_RESOLVER);
+    formData.append('escrow_id', escrowResult.escrowId);
+    formData.append('project_name', projectName);
+    formData.append('duration', duration);
+    formData.append('budget', budget);
+    formData.append('milestone1', milestone1);
+    formData.append('milestone2', milestone2);
+    formData.append('milestone3', milestone3);
+
+    const res = await fetch('submit_proposal.php', {
+      method: 'POST',
+      body: formData
+    });
+
+    successDiv.textContent = '✅ Escrow deployed on Stellar! ID: ' + escrowResult.escrowId;
+    successDiv.style.display = 'block';
+
+    setTimeout(() => {
+      document.getElementById('proposalModal').style.display = 'none';
+      window.location.reload();
+    }, 2000);
+
+  } catch (err) {
+    errorDiv.textContent = 'Error: ' + err.message;
+    errorDiv.style.display = 'block';
+    btn.textContent = '🚀 Deploy Escrow & Submit';
+    btn.disabled = false;
+  }
 };
 
-modal.onclick = (e) => {
-  if (e.target === modal) modal.style.display = 'none';
-};
+// Escrow action handlers
+async function handleApprove(escrowId, milestoneIndex) {
+  if (!confirm('Approve milestone ' + (milestoneIndex + 1) + '?')) return;
+  try {
+    await approveMilestone(escrowId, milestoneIndex, "<?= $wallet_address ?>");
+    alert('✅ Milestone approved!');
+    window.location.reload();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function handleRelease(escrowId, milestoneIndex) {
+  if (!confirm('Release funds for milestone ' + (milestoneIndex + 1) + '?')) return;
+  try {
+    await releaseFunds(escrowId, milestoneIndex, "<?= $wallet_address ?>");
+    alert('💸 Funds released!');
+    window.location.reload();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function handleDispute(escrowId, milestoneIndex) {
+  if (!confirm('Raise dispute for milestone ' + (milestoneIndex + 1) + '?')) return;
+  try {
+    await raiseDispute(escrowId, milestoneIndex, "<?= $wallet_address ?>");
+    alert('⚠️ Dispute raised!');
+    window.location.reload();
+  } catch(e) { alert('Error: ' + e.message); }
+}
 </script>
-
 </body>
 </html>
